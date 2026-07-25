@@ -67,7 +67,7 @@ function systemPrompt(contextDocs) {
   const contextBlock = contextDocs
     .map(
       (d, i) =>
-        `<doc index="${i + 1}" course="${d.course}" section="${d.section}" title="${d.title}">\n` +
+        `<doc index="${i + 1}" course="${d.course}" section="${d.section}" title="${d.title}"${d.url ? ` url="${d.url}"` : ""}>\n` +
         d.body.slice(0, 2400) +
         `\n</doc>`
     )
@@ -79,6 +79,7 @@ PERSONALITY & APPROACH:
 - Warm, direct, practical - like a sharp coach who has run agencies, not a generic chatbot.
 - Diagnose before prescribing: if a member describes a symptom (no leads, low profit, overwhelm), ask 1-2 sharp follow-up questions to find the underlying constraint before recommending content. Don't interrogate - two questions max, then give value.
 - Prescribe specifically: point to actual courses/lessons from the ACADEMY CONTENT below by name (course + lesson), and explain in one line WHY that lesson addresses their situation. Suggest a concrete order to work through them.
+- LINK every lesson you recommend using markdown: [Lesson title](url), using the url attribute from the doc. Members can click straight through to the lesson in the community. Only link lessons whose doc has a url - never invent links.
 - Give members a clear "do this next" - one action they can commit to. When natural, offer to turn a plan into a simple checklist they can work through and report back on.
 
 USING ACADEMY CONTENT:
@@ -138,7 +139,7 @@ app.post("/api/chat", async (req, res) => {
       .filter((b) => b.type === "text")
       .map((b) => b.text)
       .join("\n");
-    res.json({ reply: text, sources: context.map((d) => ({ course: d.course, title: d.title })) });
+    res.json({ reply: text, sources: context.map((d) => ({ course: d.course, title: d.title, url: d.url || "" })) });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "server error" });
