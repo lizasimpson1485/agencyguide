@@ -22,40 +22,15 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 const MODEL = process.env.MODEL || "claude-sonnet-4-6";
-const KB_DIR = path.join(__dirname, "knowledge-base");
 
 // ---------------------------------------------------------------
-// Knowledge base: load all markdown at boot, build a simple index
+// Knowledge base: single-file bundle (kb.json), indexed at boot
 // ---------------------------------------------------------------
 const docs = [];
-function loadKB(dir, rel = "") {
-  for (const item of fs.readdirSync(dir)) {
-    const full = path.join(dir, item);
-    const relPath = path.join(rel, item);
-    if (fs.statSync(full).isDirectory()) {
-      loadKB(full, relPath);
-    } else if (item.endsWith(".md")) {
-      const raw = fs.readFileSync(full, "utf-8");
-      const meta = {};
-      const m = raw.match(/^---\n([\s\S]*?)\n---/);
-      if (m) {
-        for (const line of m[1].split("\n")) {
-          const i = line.indexOf(":");
-          if (i > 0) meta[line.slice(0, i).trim()] = line.slice(i + 1).trim();
-        }
-      }
-      const body = raw.replace(/^---\n[\s\S]*?\n---/, "").trim();
-      const title = (body.match(/^#\s+(.+)/m) || [])[1] || item.replace(".md", "");
-      docs.push({
-        path: relPath,
-        course: meta.course || meta.space || relPath.split(path.sep)[0].replace(/-/g, " "),
-        section: meta.section || "",
-        type: meta.type || "lesson",
-        title,
-        body,
-        tokens: tokenize(title + " " + relPath + " " + body),
-      });
-    }
+{
+  const bundle = JSON.parse(fs.readFileSync(path.join(__dirname, "kb.json"), "utf-8"));
+  for (const d of bundle) {
+    docs.push({ ...d, tokens: tokenize(d.title + " " + d.path + " " + d.body) });
   }
 }
 function tokenize(s) {
@@ -63,7 +38,7 @@ function tokenize(s) {
     s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 2)
   );
 }
-loadKB(KB_DIR);
+
 console.log(`Knowledge base loaded: ${docs.length} documents`);
 
 // Rank docs against a query with simple term-overlap scoring,
