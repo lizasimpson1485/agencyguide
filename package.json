@@ -1,0 +1,11 @@
+{
+  "name": "uda-growth-coach",
+  "version": "1.0.0",
+  "description": "UDA Scale Academy AI Growth Coach",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
