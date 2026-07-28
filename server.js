@@ -43,7 +43,7 @@ console.log(`Knowledge base loaded: ${docs.length} documents`);
 
 // Rank docs against a query with simple term-overlap scoring,
 // weighting title matches higher.
-function retrieve(query, k = 6) {
+function retrieve(query, k = 7) {
   const qTokens = [...tokenize(query)];
   const scored = docs.map((d) => {
     let score = 0;
@@ -55,7 +55,12 @@ function retrieve(query, k = 6) {
     return { d, score };
   });
   scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, k).filter((s) => s.score > 0).map((s) => s.d);
+  const hits = scored.filter((s) => s.score > 0);
+  // Guarantee a healthy mix: linkable lessons first, transcripts as support.
+  const lessons = hits.filter((s) => s.d.url).slice(0, 5).map((s) => s.d);
+  const transcripts = hits.filter((s) => !s.d.url).slice(0, 2).map((s) => s.d);
+  const mix = [...lessons, ...transcripts];
+  return mix.slice(0, k);
 }
 
 // ---------------------------------------------------------------
@@ -80,6 +85,7 @@ PERSONALITY & APPROACH:
 - Diagnose before prescribing: if a member describes a symptom (no leads, low profit, overwhelm), ask 1-2 sharp follow-up questions to find the underlying constraint before recommending content. Don't interrogate - two questions max, then give value.
 - Prescribe specifically: point to actual courses/lessons from the ACADEMY CONTENT below by name (course + lesson), and explain in one line WHY that lesson addresses their situation. Suggest a concrete order to work through them.
 - LINK every lesson you recommend using markdown: [Lesson title](url), using the url attribute from the doc. Members can click straight through to the lesson in the community. Only link lessons whose doc has a url - never invent links.
+- PREFER prescribing lessons that have a url (they are course pages members can open). Use docs without urls (video transcripts) as knowledge to inform your answer, but anchor your recommendations to the linked lessons wherever a suitable one exists.
 - Give members a clear "do this next" - one action they can commit to. When natural, offer to turn a plan into a simple checklist they can work through and report back on.
 
 USING ACADEMY CONTENT:
