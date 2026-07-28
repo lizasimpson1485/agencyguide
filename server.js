@@ -135,10 +135,23 @@ app.post("/api/chat", async (req, res) => {
       console.error("Anthropic error:", JSON.stringify(data).slice(0, 500));
       return res.status(502).json({ error: "AI service error" });
     }
-    const text = (data.content || [])
+    let text = (data.content || [])
       .filter((b) => b.type === "text")
       .map((b) => b.text)
       .join("\n");
+
+    // Guarantee links: auto-link any mentioned lesson title that has a URL
+    for (const d of context) {
+      if (!d.url || !d.title || d.title.length < 4) continue;
+      if (text.includes("](" + d.url + ")")) continue; // already linked
+      const idx = text.indexOf(d.title);
+      if (idx !== -1) {
+        // don't double-link if the title sits inside an existing markdown link
+        const before = text.slice(Math.max(0, idx - 1), idx);
+        if (before === "[") continue;
+        text = text.slice(0, idx) + "[" + d.title + "](" + d.url + ")" + text.slice(idx + d.title.length);
+      }
+    }
     res.json({ reply: text, sources: context.map((d) => ({ course: d.course, title: d.title, url: d.url || "" })) });
   } catch (e) {
     console.error(e);
@@ -170,7 +183,15 @@ app.post("/api/request-content", async (req, res) => {
   res.json({ ok: true });
 });
 
-app.get("/health", (_req, res) => res.json({ ok: true, docs: docs.length }));
+app.get("/health", (_req, res) =>
+  res.json({
+    ok: true,
+    version: "1.2-links",
+    docs: docs.length,
+    docs_with_urls: docs.filter((d) => d.url).length,
+    linking_prompt: /LINK every lesson/.test(systemPrompt([])) ? "active" : "MISSING",
+  })
+);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`UDA Growth Coach running on :${PORT}`));
